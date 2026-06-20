@@ -141,3 +141,4 @@ websockets==16.0
 widgetsnbextension==4.0.15
 matplotlib
 seaborn
+country_converter
