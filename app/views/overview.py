@@ -13,11 +13,13 @@ def render():
         "than their risk profile warrants."
     )
     df = load_country_scored()
-    st.plotly_chart(build_choropleth(df), use_container_width=True)
-    st.caption(
-        "Red = under-allocated vs. model · Blue = over-allocated · Pale = on target. "
-        "Hover any country for its profile, value, tier, and years observed."
-    )
+
+    with st.container(border=True):
+        st.plotly_chart(build_choropleth(df), use_container_width=True)
+        st.caption(
+            "Red = under-allocated vs. model · Blue = over-allocated · Pale = on target. "
+            "Grey countries are outside the sample. Hover any country for its detail."
+        )
 
     st.divider()
     st.subheader("Country detail")
@@ -39,3 +41,7 @@ def render():
 
     st.caption(f"↗ For a full AI-generated policy brief on {choice}, "
                "open **Policy briefs** in the sidebar.")
+
+    st.divider()
+    st.caption("↗ For data sources, the model specification, and limitations, "
+               "see **Methods & data** in the sidebar.")
