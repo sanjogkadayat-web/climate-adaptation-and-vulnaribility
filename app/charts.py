@@ -8,6 +8,8 @@ CFG = {
     "profile": "profile", "thin": "thin_data",
 }
 
+MAP_HEIGHT = 800   # master size dial: raise to make the whole map bigger
+
 
 def _colorbar_ticks(m: float):
     top = int(np.floor(m))
@@ -60,16 +62,17 @@ def build_choropleth(df: pd.DataFrame):
             "Years observed: %{customdata[3]}%{customdata[4]}<extra></extra>"
         ),
     )
-    fig.update_layout(
-        margin=dict(l=0, r=0, t=10, b=0), height=520,
-        coloraxis_colorbar=dict(title="Misallocation<br>(model residual)",
-                                tickmode="array", tickvals=tickvals, ticktext=ticktext),
-    )
-    # base layer: every country shown as pale land with thin borders, data colored on top
+    # All countries drawn; background kept super-faint (no heavy panel)
     fig.update_geos(
         showframe=False, showcoastlines=False,
-        showland=True, landcolor="#eef1f4",
-        showcountries=True, countrycolor="#cbd2da", countrywidth=0.4,
-        showocean=False, bgcolor="rgba(0,0,0,0)",
+        showland=True, landcolor="#edf0f3",        # no-data countries: faint grey
+        showcountries=True, countrycolor="#d9dee4", countrywidth=0.4,
+        showocean=True, oceancolor="#f7f9fb",       # barely-there ocean
+        bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=0, b=0), height=MAP_HEIGHT,
+        coloraxis_colorbar=dict(title="Misallocation<br>(model residual)",
+                                tickmode="array", tickvals=tickvals, ticktext=ticktext),
     )
     return fig
