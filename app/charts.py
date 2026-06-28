@@ -11,7 +11,7 @@ CFG = {
     "profile": "profile", "thin": "thin_data",
 }
 
-MAP_HEIGHT = 460   # master size dial: raise to make the whole map bigger
+MAP_HEIGHT = 560   # master size dial: raise to make the whole map bigger
 LABEL_N = 5        # how many of the darkest-red extremes to name on the map (0 hides)
 
 

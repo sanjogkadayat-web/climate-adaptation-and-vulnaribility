@@ -103,7 +103,7 @@ def render():
 
     st.write("")
 
-    map_col, rail_col = st.columns([2, 1], gap="medium")
+    map_col, rail_col = st.columns([3, 1], gap="medium")
     with map_col:
         with st.container(border=True, key="card-map"):
             st.plotly_chart(build_choropleth(df), use_container_width=True)
