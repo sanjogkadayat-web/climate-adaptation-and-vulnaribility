@@ -78,13 +78,20 @@ def _rgba(hex_color: str, alpha: float) -> str:
 # ---------------------------------------------------------------------------
 from app.views import overview, regression, projections, briefs, methods
 
-pg = st.navigation([
-    st.Page(overview.render,    title="Overview map",     icon="🗺️", url_path="overview",    default=True),
-    st.Page(regression.render,  title="Regression",       icon="📈", url_path="regression"),
-    st.Page(projections.render, title="2030 projections", icon="🔮", url_path="projections"),
-    st.Page(briefs.render,      title="Policy briefs",    icon="📝", url_path="briefs"),
-    st.Page(methods.render,     title="Methods & data",   icon="📋", url_path="methods"),
-])
+nav_pages = {
+    "overview":    st.Page(overview.render,    title="Overview map",     icon="🗺️", url_path="overview", default=True),
+    "regression":  st.Page(regression.render,  title="Regression",       icon="📈", url_path="regression"),
+    "projections": st.Page(projections.render, title="2030 projections", icon="🔮", url_path="projections"),
+    "briefs":      st.Page(briefs.render,      title="Policy briefs",    icon="📝", url_path="briefs"),
+    "methods":     st.Page(methods.render,     title="Methods & data",   icon="📋", url_path="methods"),
+}
+pg = st.navigation(list(nav_pages.values()))
+
+# Expose the page objects so a view can trigger cross-page navigation through
+# st.switch_page (e.g. Overview -> Policy briefs for the selected country).
+# Function-based pages can only be switched to via their StreamlitPage object,
+# so the view reaches them here rather than by file path.
+st.session_state["_nav_pages"] = nav_pages
 
 # The default page reports url_path == "" (Streamlit serves it at the app root),
 # so `or "overview"` maps that empty string back to the Overview accent. Every

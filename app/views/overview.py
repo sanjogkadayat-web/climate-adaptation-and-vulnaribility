@@ -1,7 +1,7 @@
 import numpy as np
 import streamlit as st
-from app.data import load_country_scored
-from app.charts import build_choropleth
+from app.data import load_country_scored, load_model_scored
+from app.charts import build_choropleth, build_lorenz, concentration_facts, build_residual_trajectory
 from app.details import country_summary
 
 
@@ -62,6 +62,17 @@ def _strip_header(text):
             f'color:#6B7280; margin-bottom:.35rem;">{text}</div>')
 
 
+def _finding_card(col, title, impact, page, link_label, icon):
+    """One key-finding card: headline, impact line, and a link to the page that proves it."""
+    with col:
+        with st.container(border=True):
+            st.markdown(f"**{title}**")
+            st.markdown(f"<span style='font-size:.92rem; color:#444;'>{impact}</span>",
+                        unsafe_allow_html=True)
+            if page is not None:
+                st.page_link(page, label=link_label, icon=icon)
+
+
 def render():
     st.title("Aid follows need on average, but not for everyone")
     st.markdown(
@@ -99,21 +110,55 @@ def render():
             "Grey countries are outside the sample. Hover any country for its detail."
         )
 
+    # --- Key findings: the cross-page takeaways, each linking to its evidence ---
+    nav = st.session_state.get("_nav_pages", {})
+    worst = [str(c).split(",")[0] for c in
+             df[~df["thin_data"].astype(bool)].nsmallest(3, "misallocation_mean")["country"]]
+    worst_str = f"{worst[0]}, {worst[1]}, and {worst[2]}"
+
     st.write("")
-    st.subheader("The widest gaps sit in a handful of countries")
-    RED, BLUE = "#b2182b", "#2166ac"
-    under = df.nsmallest(6, "misallocation_mean")
-    over = df.nlargest(6, "misallocation_mean")
-    u_col, o_col = st.columns(2)
-    u_col.markdown(_strip_header("Most underfunded vs need") + _rank_table(under, RED),
-                   unsafe_allow_html=True)
-    o_col.markdown(_strip_header("Most over-resourced") + _rank_table(over, BLUE),
-                   unsafe_allow_html=True)
-    st.caption(
-        "Mean model residual in log units: red countries received less adaptation aid than "
-        "predicted, blue more. ⚠ marks a country scored on only one or two years. "
-        "The map names the deepest red cases directly."
-    )
+    st.subheader("Key findings")
+    f1, f2, f3 = st.columns(3, gap="medium")
+    _finding_card(
+        f1, "Aid follows need, but only after size",
+        "Vulnerability shapes allocation once population is controlled, yet the model still "
+        "leaves about half of all aid unexplained.",
+        nav.get("regression"), "How the model works", "📈")
+    _finding_card(
+        f2, "A few countries are systematically short-changed",
+        f"{worst_str} receive far less adaptation aid than their risk profile warrants.",
+        nav.get("briefs"), "Generate a country brief", "📝")
+    _finding_card(
+        f3, "The gaps are widening, not closing",
+        "Most regional allocation gaps are projected to drift further from need toward 2030 "
+        "rather than close.",
+        nav.get("projections"), "See 2030 projections", "🔮")
+
+    # --- Concentration and named extremes, side by side ---
+    st.write("")
+    left, right = st.columns(2, gap="large")
+    with left:
+        st.subheader("Most aid pools in a few recipients")
+        st.plotly_chart(build_lorenz(df), use_container_width=True)
+        cf = concentration_facts(df)
+        st.caption(
+            f"The lowest-funded half of countries get {cf['bottom50']:.0%} of aid; the top 15 "
+            f"take {cf['top15']:.0%}, and the top {cf['top_half']:.0%} hold half. "
+            "Dashed line marks perfect equality."
+        )
+    with right:
+        st.subheader("The widest gaps, named")
+        RED, BLUE = "#b2182b", "#2166ac"
+        under = df.nsmallest(5, "misallocation_mean")
+        over = df.nlargest(5, "misallocation_mean")
+        st.markdown(_strip_header("Underfunded vs need") + _rank_table(under, RED),
+                    unsafe_allow_html=True)
+        st.markdown(_strip_header("Over-resourced") + _rank_table(over, BLUE),
+                    unsafe_allow_html=True)
+        st.caption(
+            "Mean model residual in log units. ⚠ marks a country scored on only one or two "
+            "years. The map names the deepest red cases directly."
+        )
 
     st.divider()
     st.subheader("Country detail")
@@ -130,11 +175,34 @@ def render():
     c2.metric("Rank in income tier", f"{metrics['rank']} / {metrics['tier_n']}")
     c3.metric("Vulnerability", f"{metrics['vuln']:.2f}")
 
+    mdf = load_model_scored()
+    n_years = int((mdf["country"] == choice).sum())
+    st.plotly_chart(build_residual_trajectory(mdf, choice), use_container_width=True)
+    if n_years <= 2:
+        st.caption(
+            f"{choice} has only {n_years} scored year{'' if n_years == 1 else 's'}, "
+            "so this trajectory is sparse. Dashed line = as predicted; "
+            "red = underfunded that year, blue = over-resourced."
+        )
+    else:
+        st.caption(
+            "Year-by-year gap from the model. Dashed line = as predicted (0); the faint "
+            "flat line is this country's average, which is the score above and on the map. "
+            "Red = underfunded that year, blue = over-resourced."
+        )
+
     st.markdown(country_md)
     st.markdown(region_md)
 
-    st.caption(f"↗ For a full AI-generated policy brief on {choice}, "
-               "open **Policy briefs** in the sidebar.")
+    briefs_page = st.session_state.get("_nav_pages", {}).get("briefs")
+    if briefs_page is not None:
+        if st.button(f"Generate a policy brief for {choice}", icon="📝"):
+            st.session_state["brief_country"] = choice   # preselect on the Briefs page
+            st.session_state["brief_for"] = choice        # generate on arrival
+            st.switch_page(briefs_page)
+    else:
+        st.caption(f"↗ For a full AI-generated policy brief on {choice}, "
+                   "open **Policy briefs** in the sidebar.")
 
     st.divider()
     st.caption("↗ For data sources, the model specification, and limitations, "

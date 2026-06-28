@@ -20,3 +20,8 @@ PROCESSED = _find_repo_root() / "data" / "processed"
 @st.cache_data(show_spinner=False)
 def load_country_scored() -> pd.DataFrame:
     return pd.read_csv(PROCESSED / "country_scored.csv")
+
+
+@st.cache_data(show_spinner=False)
+def load_model_scored() -> pd.DataFrame:
+    return pd.read_csv(PROCESSED / "model_scored.csv")
