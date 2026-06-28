@@ -103,12 +103,25 @@ def render():
 
     st.write("")
 
-    with st.container(border=True, key="card-map"):
-        st.plotly_chart(build_choropleth(df), use_container_width=True)
-        st.caption(
-            "Red = under-allocated vs. model · Blue = over-allocated · Pale = on target. "
-            "Grey countries are outside the sample. Hover any country for its detail."
-        )
+    map_col, rail_col = st.columns([2, 1], gap="medium")
+    with map_col:
+        with st.container(border=True, key="card-map"):
+            st.plotly_chart(build_choropleth(df), use_container_width=True)
+            st.caption(
+                "Red = under-allocated vs. model · Blue = over-allocated · Pale = on target. "
+                "Grey countries are outside the sample. Hover any country for its detail."
+            )
+    with rail_col:
+        with st.container(border=True, key="card-extremes"):
+            st.markdown("**The widest gaps, named**")
+            RED, BLUE = "#b2182b", "#2166ac"
+            under = df.nsmallest(5, "misallocation_mean")
+            over = df.nlargest(5, "misallocation_mean")
+            st.markdown(_strip_header("Underfunded vs need") + _rank_table(under, RED),
+                        unsafe_allow_html=True)
+            st.markdown(_strip_header("Over-resourced") + _rank_table(over, BLUE),
+                        unsafe_allow_html=True)
+            st.caption("Mean residual, log units. ⚠ = one or two years of data.")
 
     # --- Key findings: the cross-page takeaways, each linking to its evidence ---
     nav = st.session_state.get("_nav_pages", {})
@@ -134,30 +147,20 @@ def render():
         "rather than close.",
         nav.get("projections"), "See 2030 projections", "🔮", key="card-find-trend")
 
-    # --- Concentration and named extremes, side by side ---
+    # --- Aid concentration ---
     st.write("")
-    left, right = st.columns(2, gap="large")
-    with left:
-        st.subheader("Most aid pools in a few recipients")
+    st.subheader("Most adaptation aid pools in a few large recipients")
+    lz, facts = st.columns([3, 2], gap="large")
+    with lz:
         st.plotly_chart(build_lorenz(df), use_container_width=True)
+    with facts:
         cf = concentration_facts(df)
+        st.metric("Lowest-funded half of countries", f"{cf['bottom50']:.0%} of aid")
+        st.metric("Top 15 recipients", f"{cf['top15']:.0%} of aid")
+        st.metric("Hold half of all aid", f"Top {cf['top_half']:.0%} of countries")
         st.caption(
-            f"The lowest-funded half of countries get {cf['bottom50']:.0%} of aid; the top 15 "
-            f"take {cf['top15']:.0%}, and the top {cf['top_half']:.0%} hold half. "
-            "Dashed line marks perfect equality."
-        )
-    with right:
-        st.subheader("The widest gaps, named")
-        RED, BLUE = "#b2182b", "#2166ac"
-        under = df.nsmallest(5, "misallocation_mean")
-        over = df.nlargest(5, "misallocation_mean")
-        st.markdown(_strip_header("Underfunded vs need") + _rank_table(under, RED),
-                    unsafe_allow_html=True)
-        st.markdown(_strip_header("Over-resourced") + _rank_table(over, BLUE),
-                    unsafe_allow_html=True)
-        st.caption(
-            "Mean model residual in log units. ⚠ marks a country scored on only one or two "
-            "years. The map names the deepest red cases directly."
+            "Countries ranked by mean adaptation aid received, 2010 to 2023. "
+            "The dashed line marks perfect equality."
         )
 
     st.divider()

@@ -11,7 +11,7 @@ CFG = {
     "profile": "profile", "thin": "thin_data",
 }
 
-MAP_HEIGHT = 520   # master size dial: raise to make the whole map bigger
+MAP_HEIGHT = 460   # master size dial: raise to make the whole map bigger
 LABEL_N = 5        # how many of the darkest-red extremes to name on the map (0 hides)
 
 
@@ -76,8 +76,11 @@ def build_choropleth(df: pd.DataFrame):
     )
     fig.update_layout(
         margin=dict(l=0, r=0, t=0, b=0), height=MAP_HEIGHT,
-        coloraxis_colorbar=dict(title="Misallocation<br>(model residual)",
-                                tickmode="array", tickvals=tickvals, ticktext=ticktext),
+        coloraxis_colorbar=dict(
+            title="Misallocation<br>(model residual)",
+            tickmode="array", tickvals=tickvals, ticktext=ticktext,
+            xpad=0, thickness=13, len=0.9, y=0.5,
+        ),
     )
 
     # Name the darkest-red extremes directly on the map. Thin-data countries are
