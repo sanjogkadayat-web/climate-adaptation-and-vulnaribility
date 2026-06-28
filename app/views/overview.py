@@ -62,10 +62,10 @@ def _strip_header(text):
             f'color:#6B7280; margin-bottom:.35rem;">{text}</div>')
 
 
-def _finding_card(col, title, impact, page, link_label, icon):
+def _finding_card(col, title, impact, page, link_label, icon, key):
     """One key-finding card: headline, impact line, and a link to the page that proves it."""
     with col:
-        with st.container(border=True):
+        with st.container(border=True, key=key):
             st.markdown(f"**{title}**")
             st.markdown(f"<span style='font-size:.92rem; color:#444;'>{impact}</span>",
                         unsafe_allow_html=True)
@@ -103,7 +103,7 @@ def render():
 
     st.write("")
 
-    with st.container(border=True):
+    with st.container(border=True, key="card-map"):
         st.plotly_chart(build_choropleth(df), use_container_width=True)
         st.caption(
             "Red = under-allocated vs. model · Blue = over-allocated · Pale = on target. "
@@ -123,16 +123,16 @@ def render():
         f1, "Aid follows need, but only after size",
         "Vulnerability shapes allocation once population is controlled, yet the model still "
         "leaves about half of all aid unexplained.",
-        nav.get("regression"), "How the model works", "📈")
+        nav.get("regression"), "How the model works", "📈", key="card-find-model")
     _finding_card(
         f2, "A few countries are systematically short-changed",
         f"{worst_str} receive far less adaptation aid than their risk profile warrants.",
-        nav.get("briefs"), "Generate a country brief", "📝")
+        nav.get("briefs"), "Generate a country brief", "📝", key="card-find-gaps")
     _finding_card(
         f3, "The gaps are widening, not closing",
         "Most regional allocation gaps are projected to drift further from need toward 2030 "
         "rather than close.",
-        nav.get("projections"), "See 2030 projections", "🔮")
+        nav.get("projections"), "See 2030 projections", "🔮", key="card-find-trend")
 
     # --- Concentration and named extremes, side by side ---
     st.write("")

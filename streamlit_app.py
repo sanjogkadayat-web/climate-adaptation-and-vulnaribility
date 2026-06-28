@@ -44,6 +44,16 @@ st.markdown(
     <style>
       [data-testid="stApp"] {{ background-color: {PAPER}; }}
       [data-testid="stHeader"] {{ background: transparent; }}
+
+      /* White cards: any st.container(border=True, key="card-...") lifts off the
+         paper canvas. The st-key class lands on the same element as the border,
+         so we soften that border and let a soft shadow define the card. */
+      [class*="st-key-card-"] {{
+        background-color: #ffffff;
+        border-color: rgba(16, 24, 40, 0.06) !important;
+        border-radius: 0.6rem;
+        box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+      }}
     </style>
     """,
     unsafe_allow_html=True,

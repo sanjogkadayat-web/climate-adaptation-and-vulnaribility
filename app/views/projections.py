@@ -171,7 +171,7 @@ def render():
 
         left, right = st.columns(2)
         with left:
-            with st.container(border=True):
+            with st.container(border=True, key="card-persist-tide"):
                 st.markdown("**A rising tide, not a correction**")
                 st.markdown(
                     "Every funding profile clusters around the same roughly 12% annual growth, so "
@@ -180,7 +180,7 @@ def render():
                     "intact."
                 )
         with right:
-            with st.container(border=True):
+            with st.container(border=True, key="card-persist-structural"):
                 st.markdown("**The gap is structural, not temporary**")
                 st.markdown(
                     "Underfunding is built in, not a lag that time will fix. The regional view "
