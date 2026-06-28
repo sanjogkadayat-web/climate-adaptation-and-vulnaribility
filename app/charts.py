@@ -1,6 +1,9 @@
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 import pandas as pd
+
+from app.geo import CENTROIDS
 
 CFG = {
     "iso3": "iso3", "name": "country", "resid": "misallocation_mean",
@@ -9,6 +12,7 @@ CFG = {
 }
 
 MAP_HEIGHT = 800   # master size dial: raise to make the whole map bigger
+LABEL_N = 5        # how many of the darkest-red extremes to name on the map (0 hides)
 
 
 def _colorbar_ticks(m: float):
@@ -75,4 +79,22 @@ def build_choropleth(df: pd.DataFrame):
         coloraxis_colorbar=dict(title="Misallocation<br>(model residual)",
                                 tickmode="array", tickvals=tickvals, ticktext=ticktext),
     )
+
+    # Name the darkest-red extremes directly on the map. Thin-data countries are
+    # excluded so a one or two year score is never headlined; a white text halo
+    # keeps the labels legible over both pale and deep-red fills.
+    if LABEL_N:
+        lab = d[~d[CFG["thin"]].astype(bool)].nsmallest(LABEL_N, CFG["resid"])
+        lab = lab[lab[CFG["iso3"]].isin(CENTROIDS)]
+        if len(lab):
+            fig.add_trace(go.Scattergeo(
+                lat=[CENTROIDS[i][0] for i in lab[CFG["iso3"]]],
+                lon=[CENTROIDS[i][1] for i in lab[CFG["iso3"]]],
+                text=[str(n).split(",")[0] for n in lab[CFG["name"]]],
+                mode="text",
+                textfont=dict(size=11, color="#1b1b1b",
+                              shadow="0px 0px 4px rgba(255,255,255,0.95)"),
+                hoverinfo="skip", showlegend=False,
+            ))
+
     return fig

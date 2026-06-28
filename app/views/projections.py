@@ -103,12 +103,34 @@ def render():
         st.plotly_chart(_regional_dumbbell(reg), use_container_width=True, key="regional_dumbbell")
         needy_close = reg[(reg.status == "closing") & (reg.gap_2023 < 0)]
         needy_widen = reg[(reg.status == "widening") & (reg.gap_2023 < 0)].sort_values("slope")
+        n_widen = int((reg.status == "widening").sum())
+        n_close = int((reg.status == "closing").sum())
+
+        def _gap_delta(rows):
+            """Change in gap MAGNITUDE, 2023 to 2030, for the lead row.
+            Positive = drifting away from need (widening); negative = toward need."""
+            if not len(rows):
+                return None
+            r0 = rows.iloc[0]
+            return abs(r0["gap_2030"]) - abs(r0["gap_2023"])
+
+        d_close = _gap_delta(needy_close)
+        d_widen = _gap_delta(needy_widen)
+
+        # delta_color="inverse" fixes one convention across all three cards:
+        # red/up = widening (away from need), green/down = closing (toward need).
+        # That holds whether the delta is a gap change or the widen-vs-close count.
         a, b, c = st.columns(3)
-        a.metric("Regions widening", f"{int((reg.status=='widening').sum())} of {len(reg)}")
+        a.metric("Regions widening", f"{n_widen} of {len(reg)}",
+                 f"{n_widen - n_close:+d} vs closing", delta_color="inverse")
         b.metric("Closing, and still needy",
-                 needy_close.iloc[0]["region"] if len(needy_close) else "—")
+                 needy_close.iloc[0]["region"] if len(needy_close) else "—",
+                 f"{d_close:+.2f} gap" if d_close is not None else None,
+                 delta_color="inverse")
         c.metric("Widening fastest, already needy",
-                 needy_widen.iloc[0]["region"] if len(needy_widen) else "—")
+                 needy_widen.iloc[0]["region"] if len(needy_widen) else "—",
+                 f"{d_widen:+.2f} gap" if d_widen is not None else None,
+                 delta_color="inverse")
         st.caption("Grey dot is the 2023 gap, colored dot the 2030 projection; the dashed line is "
                    "a needs-based allocation (gap = 0). South Asia's path rests on only about nine "
                    "countries, so it is more volatile, though the trend is significant (p = 0.03).")
