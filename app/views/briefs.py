@@ -2,14 +2,41 @@ import streamlit as st
 
 from app import briefs
 
+SECTIONS = ["Executive summary", "Context", "The allocation gap", "Why the gap persists",
+            "Outlook to 2030", "Recommendations", "Risks and caveats"]
+
 
 def render():
     st.title("AI-generated policy briefs")
     st.markdown(
-        "Generate a short, evidence-based brief for any country. Claude writes it using only "
-        "this project's figures for that country, its misallocation score, tier rank, regional "
-        "trajectory, and 2030 projection, so the brief interprets the data rather than inventing it."
+        "Generate a short, evidence-based brief for any country. Claude writes it from this "
+        "project's figures for that country, its misallocation score, tier rank, regional "
+        "trajectory, and 2030 projection, so the brief interprets the data rather than inventing "
+        "new numbers."
     )
+
+    with st.expander("How these briefs are generated, and why you can trust them"):
+        st.markdown(
+            "**Every number is the project's.** Each brief is built from a fixed block of figures "
+            "computed in this analysis: the country's misallocation score and tier rank, ND-GAIN "
+            "vulnerability, observed aid, regional trajectory, and 2030 projection. The model is "
+            "instructed to treat these as the verified spine and never alter or invent a number, "
+            "rank, dollar amount, or direction.\n\n"
+            "**Context may draw on general knowledge; specifics may not.** Claude can add the "
+            "qualitative framing an informed reader expects, such as a country's known hazard "
+            "exposure or governance setting, but it is explicitly forbidden from inventing precise "
+            "statistics, dates, dollar amounts, named programs, or treaty references, and must "
+            "hedge anything it is unsure of.\n\n"
+            "**No web search, no outside data feed.** The only structured input is the figures "
+            "block below; there are no live lookups or tools involved.\n\n"
+            f"**Fixed structure and model.** Every brief follows the same seven sections "
+            f"({', '.join(SECTIONS)}), written by `{briefs.MODEL}` against a set system prompt. "
+            "Results are cached, so re-opening a country returns the same brief rather than "
+            "regenerating a new one.\n\n"
+            "**Still a draft.** Treat each brief as decision-support, not an official assessment. "
+            "Thin-data countries rest on only one or two years, and the model can still misjudge "
+            "emphasis even when every figure is correct."
+        )
 
     if not briefs.has_api_key():
         st.warning(
@@ -20,6 +47,14 @@ def render():
         return
 
     country = st.selectbox("Country", briefs.country_list(), key="brief_country")
+
+    with st.expander(f"See the exact figures Claude is given for {country}"):
+        st.code(briefs.input_facts(country), language="text")
+        st.caption(
+            "This is the complete quantitative input. Every number in the brief should trace back "
+            "to one of these lines; anything else is qualitative context, not new data."
+        )
+
     if st.button("Generate brief", type="primary"):
         st.session_state["brief_for"] = country
 

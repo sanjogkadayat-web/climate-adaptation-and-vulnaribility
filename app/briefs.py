@@ -51,6 +51,11 @@ def country_list():
     return sorted(_scored()["country"].unique())
 
 
+def input_facts(country: str) -> str:
+    """The exact figures block passed to the model, exposed for transparency in the UI."""
+    return _facts_block(_facts(country))
+
+
 def _facts(country: str) -> dict:
     s = _scored()
     row = s[s["country"] == country].iloc[0]

@@ -85,6 +85,68 @@ def _growth_box(cp):
     return fig
 
 
+def _country_meaning(row):
+    """What the selected country's forecast means, tailored to profile and direction.
+    Deliberately keyed to profile/direction/significance rather than the percent figure,
+    which is extremely volatile for some countries."""
+    country = row["country"]
+    prof = row["profile"]
+    pl = prof.lower()
+    direction = str(row["direction"]).lower()  # rising / falling / flat
+    under = prof in ("Chronically Underfunded", "Underfunded")
+    over = prof == "Over-Resourced"
+
+    if under and direction == "rising":
+        body = (
+            f"**What it shows.** {country}'s adaptation aid is on a rising path through 2030.\n\n"
+            f"**The takeaway.** It starts {pl}, and rising dollars are not the same as catching up: "
+            f"on this trajectory it is projected to remain below what its risk warrants.\n\n"
+            f"**Why it matters.** Because aid grows at similar rates across funding profiles (see "
+            f"the next tab), {country}'s relative shortfall persists unless donors steer new money "
+            f"toward it rather than only enlarging the pool.")
+    elif under and direction == "falling":
+        body = (
+            f"**What it shows.** {country} is already {pl}, and its aid is trending down.\n\n"
+            f"**The takeaway.** A falling path on top of an existing shortfall means the gap is set "
+            f"to widen further.\n\n"
+            f"**Why it matters.** This is the profile most in need of a deliberate course "
+            f"correction; the trend on its own will not fix it.")
+    elif under:  # flat
+        body = (
+            f"**What it shows.** {country} is {pl}, and its aid is projected to stay roughly flat.\n\n"
+            f"**The takeaway.** A flat path leaves the existing shortfall unaddressed.\n\n"
+            f"**Why it matters.** Standing still here means falling further behind as climate need "
+            f"grows.")
+    elif over and direction == "falling":
+        body = (
+            f"**What it shows.** {country} receives more adaptation aid than the model predicts, and "
+            f"that aid is trending down.\n\n"
+            f"**The takeaway.** Its lead is narrowing, moving it back toward need.\n\n"
+            f"**Why it matters.** This is allocation self-correcting, the exception rather than the "
+            f"rule in this data.")
+    elif over:  # rising or flat
+        body = (
+            f"**What it shows.** {country} already receives more adaptation aid than the model "
+            f"predicts, and the trajectory is still {direction}.\n\n"
+            f"**The takeaway.** Continued aid at this level widens that lead rather than redirecting "
+            f"funds toward needier recipients.\n\n"
+            f"**Why it matters.** Every dollar above need here is one not reaching an underfunded "
+            f"country.")
+    else:  # Adequately Funded
+        body = (
+            f"**What it shows.** {country} currently tracks need closely.\n\n"
+            f"**The takeaway.** Its {direction} trajectory keeps it roughly on target through 2030.\n\n"
+            f"**Why it matters.** Countries like this are where allocation is already working as "
+            f"intended.")
+
+    if not bool(row["trend_significant"]):
+        n = int(row["n_years"])
+        body += (
+            f"\n\n_Caveat: this trend is not statistically significant ({n} observed years and a "
+            f"noisy series), so read the 2030 figure as illustrative, not a firm forecast._")
+    return body
+
+
 def render():
     st.title("Aid is rising almost everywhere, but the allocation gaps mostly aren't closing")
     st.markdown(
@@ -135,6 +197,29 @@ def render():
                    "a needs-based allocation (gap = 0). South Asia's path rests on only about nine "
                    "countries, so it is more volatile, though the trend is significant (p = 0.03).")
 
+        close_region = needy_close.iloc[0]["region"] if len(needy_close) else None
+        widen_region = needy_widen.iloc[0]["region"] if len(needy_widen) else None
+        with st.container(border=True, key="card-region-meaning"):
+            st.markdown(
+                "**What it shows.** The dumbbell tracks each region's allocation gap, the distance "
+                "between the aid it receives and what its need warrants, not its dollar total. Left "
+                "of the dashed line is under-allocated; movement away from the line means the gap "
+                "is widening.")
+            takeaway = (f"**The takeaway.** {n_widen} of {len(reg)} regions are projected to drift "
+                        f"further from need by 2030.")
+            if close_region:
+                takeaway += (f" The only needy region narrowing its gap is {close_region}, and even "
+                             f"it stays underfunded.")
+            if widen_region:
+                takeaway += (f" Among regions that are both needy and worsening, {widen_region} is "
+                             f"widening fastest.")
+            st.markdown(takeaway)
+            st.markdown(
+                "**Why it matters.** Because aid grows at roughly the same rate regardless of how "
+                "well a region is already funded (see the next tab), these gaps will not "
+                "self-correct. Closing them means deliberately redirecting new aid toward "
+                "under-allocated regions rather than enlarging the pool for everyone.")
+
     with t_country:
         cp = _load_country_proj()
         panel = _load_panel()
@@ -158,6 +243,9 @@ def render():
                    "A projection assumes the 2010 to 2023 trend continues, and since 87% of "
                    "countries are rising, the direction alone does not show whether a country is "
                    "catching up.")
+
+        with st.container(border=True, key="card-country-meaning"):
+            st.markdown(_country_meaning(row))
 
     with t_persist:
         cp = _load_country_proj()

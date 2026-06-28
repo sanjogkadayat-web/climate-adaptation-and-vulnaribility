@@ -35,6 +35,12 @@ def _coef_plot(tbl):
     return fig
 
 
+def _coef_value(tbl, label):
+    """Pull a single coefficient by its display label from the fitted table."""
+    row = tbl.loc[tbl["Predictor"] == label].iloc[0]
+    return float(row["Coefficient"])
+
+
 def _fit_scatter(d, lo, hi):
     fig = px.scatter(
         d, x="predicted_log_aid", y="log_aid", color="Income tier",
@@ -64,6 +70,26 @@ def _fit_takeaway(d, label):
     )
 
 
+def _fit_by_tier(df):
+    """Bar chart of model fit (predicted vs actual correlation) within each income tier."""
+    rows = []
+    for t in TIER_ORDER:
+        d = df[df["Income tier"] == t]
+        if len(d) > 2:
+            rows.append({"tier": t, "r": d["predicted_log_aid"].corr(d["log_aid"]), "n": len(d)})
+    f = pd.DataFrame(rows)
+    colors = ["#b8b8b8" if r < 0.3 else "#2c6e8f" for r in f["r"]]
+    fig = go.Figure(go.Bar(
+        x=f["r"], y=f["tier"], orientation="h", marker_color=colors,
+        text=[f"r = {r:.2f}  (n={n})" for r, n in zip(f["r"], f["n"])],
+        textposition="outside", cliponaxis=False,
+        hovertemplate="%{y}: r = %{x:.2f}<extra></extra>"))
+    fig.update_xaxes(range=[0, 1.05], title="Correlation of predicted vs. actual aid")
+    fig.update_yaxes(categoryorder="array", categoryarray=TIER_ORDER[::-1], title=None)
+    fig.update_layout(height=240, margin=dict(l=0, r=40, t=10, b=0))
+    return fig
+
+
 def _trajectory(d):
     d = d.sort_values("year")
     fig = go.Figure()
@@ -83,28 +109,23 @@ def _trajectory(d):
     return fig
 
 
-def _trajectory_takeaway(d):
+def _trajectory_stats(d):
+    """Headline plus the scorecard figures for one country's residual path."""
     d = d.sort_values("year")
     country = d["country"].iloc[0]
     n = len(d)
     under = int((d["misallocation_score"] < 0).sum())
-    mean = d["misallocation_score"].mean()
-    ext = d.loc[d["misallocation_score"].abs().idxmax()]
+    mean = float(d["misallocation_score"].mean())
     head = (f"{country} has been persistently underfunded" if mean < -0.5 else
             f"{country} has been consistently over-resourced" if mean > 0.5 else
             f"{country} tracks the model closely")
-    bullets = [
-        f"- Actual aid fell **below** the model's prediction in **{under} of {n}** observed "
-        f"years, averaging **{mean:+.2f}** log units.",
-        f"- Its largest single-year deviation was **{int(ext['year'])}** at "
-        f"**{ext['misallocation_score']:+.2f}** log units.",
-    ]
     if n >= 3:
         aslope = np.polyfit(d["year"], d["misallocation_score"].abs(), 1)[0]
-        trend = ("narrowed toward the model" if aslope < -0.01 else
-                 "widened away from the model" if aslope > 0.01 else "stayed roughly steady")
-        bullets.append(f"- Over time the gap has **{trend}**.")
-    return head, "\n".join(bullets)
+        trend = ("Narrowing" if aslope < -0.01 else
+                 "Widening" if aslope > 0.01 else "Steady")
+    else:
+        trend = "Too few years"
+    return {"head": head, "n": n, "under": under, "mean": mean, "trend": trend}
 
 
 def render():
@@ -131,16 +152,28 @@ def render():
     with t_drivers:
         st.subheader("Need and size move aid; geography and income tier don't")
         st.plotly_chart(_coef_plot(tbl), use_container_width=True, key="coef_plot")
+
+        st.markdown("**The four drivers that actually move aid**")
+        d1, d2, d3, d4 = st.columns(4)
+        d1.metric("Vulnerability · need", f"{_coef_value(tbl, 'Vulnerability (ND-GAIN)'):+.2f}")
+        d2.metric("Population · size", f"{_coef_value(tbl, 'Log population'):+.2f}")
+        d3.metric("GDP per capita · wealth", f"{_coef_value(tbl, 'Log GDP per capita'):+.2f}")
+        d4.metric("Governance", f"{_coef_value(tbl, 'Governance effectiveness'):+.3f}")
+        st.caption(
+            "Coefficients on log adaptation aid; all four are significant at 95%. Units differ "
+            "across predictors, so magnitudes are not directly comparable, but the signs and the "
+            "coefficient plot above tell the story."
+        )
+
         st.markdown(
-            "- **Vulnerability dominates.** Its coefficient (3.64) is several times larger than "
-            "any other driver, making need the single strongest pull on aid.\n"
-            "- **Size is the gatekeeper.** Population is strongly positive, which is why "
-            "vulnerability only becomes significant once it is in the model: large countries "
-            "draw aid regardless of need.\n"
-            "- **Poorer and better-governed countries get more.** Higher GDP per capita lowers "
-            "aid; stronger governance modestly raises it.\n"
-            "- **Geography and category do not matter.** Landlocked status, small-island status, "
-            "and income tier are all indistinguishable from zero once need, size, wealth, and "
+            "**Need is the strongest pull, but only because size is controlled.** Vulnerability "
+            "carries the largest coefficient by far, yet it reaches significance only once "
+            "population is in the model: large countries draw aid regardless of need, so without a "
+            "size control, need looks irrelevant (this is the result that flipped the project's "
+            "core finding). **Poorer and better-governed countries get more,** with higher GDP per "
+            "capita lowering aid and stronger governance modestly raising it. **Geography and "
+            "category add nothing:** landlocked status, small-island status, and every income-tier "
+            "dummy are statistically indistinguishable from zero once need, size, wealth, and "
             "governance are accounted for."
         )
 
@@ -154,15 +187,18 @@ def render():
         st.plotly_chart(_fit_scatter(d, lo, hi), use_container_width=True, key="fit_scatter")
         label = "all tiers" if tier == "All tiers" else f"the {tier}-income tier"
         st.markdown(_fit_takeaway(d, label))
+
+        st.markdown("**Where the model works, and where it stops working**")
+        st.plotly_chart(_fit_by_tier(df), use_container_width=True, key="fit_by_tier")
         st.markdown(
-            "- **Half of allocation is predictable.** With R² = 0.50, the scatter around the "
-            "45° line is the other half, which the project scores as misallocation.\n"
-            "- **Fit is uneven across tiers.** Strong for low- and middle-income recipients "
-            "(r ≈ 0.70), almost absent for high-income ones (r = 0.12), where aid seems to "
-            "follow logic outside need and size.\n"
-            "- **The biggest gaps are concrete.** Points far below the line are chronically "
-            "underfunded country-years; the widest is China in 2023, 3.85 log units below "
-            "prediction."
+            "**Fit is strong for poor and middle-income recipients and collapses at the top.** "
+            "For low and lower-middle income countries the model explains aid well (r ≈ 0.7), so "
+            "their residuals are trustworthy signals of over- or under-funding. For high-income "
+            "recipients the correlation is just 0.12: aid there appears to follow logic outside "
+            "need and size (politics, strategic ties, co-financing), so those residuals should be "
+            "read with more caution. **The remaining spread is the project's raw material:** every "
+            "point off the 45° line is a country-year the model cannot explain, and the country "
+            "averages of those gaps are the misallocation scores on the Home map."
         )
 
     with t_country:
@@ -173,14 +209,21 @@ def render():
         country = st.selectbox("Select a country", countries,
                                index=countries.index(default), key="traj_country")
         d = df[df["country"] == country]
-        head, bullets = _trajectory_takeaway(d)
-        st.subheader(head)
+        s = _trajectory_stats(d)
+        st.subheader(s["head"])
         st.plotly_chart(_trajectory(d), use_container_width=True, key="trajectory")
         st.caption(
             "Solid line is actual aid received; dashed line is the model's prediction. "
             "The shaded gap between them is the misallocation, in log units."
         )
-        st.markdown(bullets)
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Years below the model", f"{s['under']} of {s['n']}")
+        m2.metric("Average gap", f"{s['mean']:+.2f} log")
+        m3.metric("Gap over time", s["trend"])
+        st.caption(
+            "A gap that is narrowing means aid is converging on what the model predicts; widening "
+            "means it is drifting further from it. Trend needs at least three observed years."
+        )
 
     with t_table:
         st.subheader("The exact benchmark behind every misallocation score")
@@ -189,13 +232,18 @@ def render():
             f"Year fixed effects across {stats['year_fe']} years are included but not shown. "
             "Significance: * p<0.05, ** p<0.01, *** p<0.001."
         )
+
+        n_sig = int(((tbl["Predictor"] != "Intercept") & (tbl["Sig."] != "")).sum())
+        b1, b2, b3 = st.columns(3)
+        b1.metric("Significant drivers (95%)", f"{n_sig}")
+        b2.metric("Standard errors", "Clustered by country")
+        b3.metric("Year fixed effects", f"{stats['year_fe']} years")
         st.markdown(
-            "- **Four drivers are significant** at the 95% level: vulnerability, population, "
-            "GDP per capita, and governance effectiveness.\n"
-            "- **Errors are clustered by country,** so repeated observations of one country do "
-            "not overstate precision.\n"
-            "- **Year fixed effects absorb the growing aid pool,** so each coefficient reflects "
-            "within-year allocation, not aid simply rising over time.\n"
-            "- **Income tier is a control,** so the misallocation residual already nets out "
-            "average differences between income groups."
+            "**Clustering by country** stops repeated observations of the same country from "
+            "overstating precision, which is why some predictors with large point estimates still "
+            "fail the significance test. **Year fixed effects absorb the growing global aid pool,** "
+            "so each coefficient reflects within-year allocation rather than aid simply rising over "
+            "time. **Income tier enters as a control,** so the misallocation residual already nets "
+            "out average differences between income groups rather than penalizing a country for the "
+            "tier it sits in."
         )
