@@ -54,6 +54,11 @@ st.markdown(
         border-radius: 0.6rem;
         box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
       }}
+
+      /* Captions carry most of the explanatory load, so darken them from the
+         faint default grey to a more legible secondary tone. */
+      [data-testid="stCaptionContainer"],
+      [data-testid="stCaptionContainer"] p {{ color: #565d66 !important; }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -89,7 +94,7 @@ def _rgba(hex_color: str, alpha: float) -> str:
 from app.views import overview, regression, projections, briefs, methods
 
 nav_pages = {
-    "overview":    st.Page(overview.render,    title="Overview map",     icon="🗺️", url_path="overview", default=True),
+    "overview":    st.Page(overview.render,    title="Home",             icon="🏠", url_path="overview", default=True),
     "regression":  st.Page(regression.render,  title="Regression",       icon="📈", url_path="regression"),
     "projections": st.Page(projections.render, title="2030 projections", icon="🔮", url_path="projections"),
     "briefs":      st.Page(briefs.render,      title="Policy briefs",    icon="📝", url_path="briefs"),

@@ -2,3 +2,4 @@
 base = "light"
 primaryColor = "#2c6e8f"
 font = "serif"
+baseFontSize = 17
